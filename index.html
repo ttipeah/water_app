@@ -34,6 +34,12 @@ h2{font-size:15px;font-weight:600;color:var(--muted);margin:22px 0 10px}
 input,select{width:100%;font:inherit;color:var(--text);background:var(--bg);border:2px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:10px}
 input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.phone{display:flex;align-items:center;background:var(--bg);border:2px solid var(--line);border-radius:14px;margin-bottom:10px}
+.phone span{padding-left:14px;font-weight:600;color:var(--muted)}
+.phone input{border:0;margin:0;background:transparent;padding-left:6px}
+.phone input:focus{outline:none}.phone:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+.warn{border-color:var(--danger);margin-bottom:16px;font-size:15px}
+.primary:disabled{opacity:.45;cursor:not-allowed}
 .addr{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
 .addr b{display:block}.addr span{color:var(--muted);font-size:14px}
 .primary{display:block;width:100%;border:0;border-radius:16px;background:var(--accent);color:var(--accent-text);font:inherit;font-size:18px;font-weight:700;padding:16px;cursor:pointer}
@@ -53,6 +59,7 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 
 <!-- ЗАКАЗ -->
 <main id="v-order">
+  <div class="box warn" id="busy" hidden>⏳ У вас уже есть активный заказ. Пожалуйста, подождите его завершения или подтверждения оператором.</div>
   <h1>Вода 19 л</h1>
   <p class="sub">Доставка по Ташкенту. Оплата при получении.</p>
 
@@ -89,7 +96,7 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
   <input id="name" type="text" placeholder="Как к вам обращаться" autocomplete="name" maxlength="60">
 
   <h2>Телефон</h2>
-  <input id="phone" type="tel" placeholder="+998 90 123 45 67" autocomplete="tel">
+  <div class="phone"><span>+998</span><input id="phone" type="tel" inputmode="numeric" placeholder="90 123 45 67" autocomplete="tel-national" maxlength="12"></div>
 
   <h2>Мои адреса</h2>
   <div id="profAddr"></div>
@@ -110,9 +117,9 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 
 <script>
 // ===== Настройки =====
-const PRICE = 20000;                 // цена за бутыль
+const PRICE = 18000;                 // цена за бутыль
 const CURRENCY = "сум";
-const CARD_NUMBER = "9860 3501 4466 7838"; // номер карты для перевода
+const CARD_NUMBER = "8600 0000 0000 0000"; // номер карты для перевода
 const MIN = 1, MAX = 10;
 // =====================
 
@@ -124,6 +131,8 @@ const fmtAddr = a => a.text || [
   a.district && a.district + " р-н", a.street, a.house && "д. " + a.house, a.apt && "кв/оф. " + a.apt,
   a.entrance && "подъезд " + a.entrance, a.floor && "этаж " + a.floor, a.code && "домофон " + a.code,
   a.landmark && "ориентир: " + a.landmark].filter(Boolean).join(", ");
+const digits9 = v => { let d = String(v || "").replace(/\D/g, ""); if(d.startsWith("998") && d.length > 9) d = d.slice(3); return d.slice(0, 9); };
+const fmtPhone = d => d.replace(/^(\d{0,2})(\d{0,3})(\d{0,2})(\d{0,2}).*/, (m,a,b,c,e) => [a,b,c,e].filter(Boolean).join(" "));
 const esc = s => s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 // Хранилище: облако Telegram (на всех устройствах), запасной вариант — localStorage
@@ -138,8 +147,10 @@ const store = {
   }
 };
 
+const busy = new URLSearchParams(location.search).get("busy") === "1"; // бот открывает апку с ?busy=1, если есть активный заказ
 let qty = 1, pay = "cash", addresses = [], selected = null, phone = "", name = "";
 
+let sent = false; // заказ уже отправлен в этой сессии
 function save(){ store.set("profile", JSON.stringify({addresses, selected, phone, name})); }
 
 function renderOrder(){
@@ -147,7 +158,8 @@ function renderOrder(){
   $("qty").textContent = qty;
   $("minus").disabled = qty <= MIN;
   $("plus").disabled = qty >= MAX;
-  $("order").textContent = `Заказать · ${fmt(PRICE*qty)}`;
+  $("order").textContent = busy ? "Активный заказ уже оформлен" : `Заказать · ${fmt(PRICE*qty)}`;
+  $("order").disabled = busy; $("busy").hidden = !busy;
   $("cardBox").hidden = pay !== "card"; $("cardHint").hidden = pay !== "card";
   $("cardNum").textContent = CARD_NUMBER;
   document.querySelectorAll("[data-pay]").forEach(b => b.setAttribute("aria-pressed", b.dataset.pay===pay));
@@ -158,7 +170,7 @@ function renderOrder(){
 }
 
 function renderProfile(){
-  $("phone").value = phone; $("name").value = name;
+  $("phone").value = fmtPhone(phone); $("name").value = name;
   $("profAddr").innerHTML = addresses.length
     ? addresses.map(a => `<div class="box addr"><div><b>${esc(a.label)}</b><span>${esc(fmtAddr(a))}</span></div><button class="small del" data-del="${a.id}">Удалить</button></div>`).join("")
     : `<p class="empty" style="margin-bottom:10px">Пока пусто.</p>`;
@@ -204,18 +216,20 @@ $("profAddr").addEventListener("click", e => {
   save(); renderProfile();
 });
 $("name").addEventListener("change", () => { name = $("name").value.trim(); save(); });
-$("phone").addEventListener("change", () => { phone = $("phone").value.trim(); save(); });
+$("phone").addEventListener("input", () => { $("phone").value = fmtPhone(digits9($("phone").value)); });
+$("phone").addEventListener("change", () => { phone = digits9($("phone").value); save(); });
 
 $("order").onclick = () => {
+  if(busy) return;
   const a = addresses.find(x => x.id === selected);
   const err = $("err");
-  if(!name || !phone){ err.textContent = "Укажите имя и телефон в разделе «Мой профиль»."; err.hidden = false; return; }
+  if(!name || phone.length !== 9){ err.textContent = "Укажите имя и телефон в разделе «Мой профиль»."; err.hidden = false; return; }
   if(!a){ err.textContent = "Выберите адрес или добавьте его в профиле."; err.hidden = false; return; }
   err.hidden = true;
   const order = {product:"Вода 19 л", qty, total:PRICE*qty,
     pay, payment: pay==="cash" ? "Наличными" : "Переводом на карту",
-    address: a.label + ": " + fmtAddr(a), name, phone};
-  if(tg && tg.sendData){ tg.sendData(JSON.stringify(order)); }
+    address: a.label + ": " + fmtAddr(a), name, phone: "+998 " + fmtPhone(phone)};
+  if(tg && tg.sendData){ tg.sendData(JSON.stringify(order)); sent = true; }
   else {
     document.querySelector("main:not([hidden])").innerHTML =
       `<div class="done"><h1>Заказ принят ✓</h1><p class="sub">${qty} × 19 л · ${fmt(order.total)}<br>${esc(order.address)}<br>${order.payment}</p></div>`;
@@ -223,8 +237,15 @@ $("order").onclick = () => {
   }
 };
 
+// На Android Telegram может оставлять страницу «живой» после закрытия.
+// Если заказ уже ушёл, при повторном открытии перезагружаем страницу начисто.
+const refresh = () => { if(sent) location.reload(); };
+document.addEventListener("visibilitychange", () => { if(!document.hidden) refresh(); });
+window.addEventListener("pageshow", e => { if(e.persisted) refresh(); });
+try{ if(tg && tg.onEvent) tg.onEvent("activated", refresh); }catch(e){}
+
 store.get("profile").then(v => {
-  try{ const p = JSON.parse(v || "{}"); addresses = p.addresses || []; selected = p.selected || (addresses[0] && addresses[0].id) || null; phone = p.phone || ""; name = p.name || ""; }catch(e){}
+  try{ const p = JSON.parse(v || "{}"); addresses = p.addresses || []; selected = p.selected || (addresses[0] && addresses[0].id) || null; phone = digits9(p.phone); name = p.name || ""; }catch(e){}
   show("order");
 });
 </script>
