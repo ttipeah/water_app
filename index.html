@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Заказ воды</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--bg:#f3f8fb;--card:#fff;--text:#0f2a3a;--muted:#5d7686;--accent:#0a7fb8;--accent-text:#fff;--line:#d3e3ec;--danger:#d64545}
+@media (prefers-color-scheme:dark){:root{--bg:#0c1a23;--card:#142630;--text:#e8f3f9;--muted:#8aa5b4;--accent:#3fb0e4;--accent-text:#05202e;--line:#25404e;--danger:#ff7a7a}}
+*{box-sizing:border-box;margin:0}
+html,body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:16px 16px 120px;max-width:480px;margin:0 auto}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:4px;margin-bottom:20px}
+.tabs button{border:0;background:none;font:inherit;font-weight:600;color:var(--muted);padding:10px;border-radius:10px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-text)}
+h1{font-size:26px;letter-spacing:-.02em;margin-bottom:4px}
+.sub{color:var(--muted);font-size:15px;margin-bottom:18px}
+h2{font-size:15px;font-weight:600;color:var(--muted);margin:22px 0 10px}
+.box{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:16px}
+.prod{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.prod b{font-size:18px;display:block}.prod span{color:var(--muted);font-size:14px}
+.stepper{display:flex;align-items:center;gap:6px}
+.stepper button{width:44px;height:44px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--text);font-size:22px;font-weight:700;cursor:pointer}
+.stepper button:disabled{opacity:.35}
+.stepper output{min-width:34px;text-align:center;font-size:22px;font-weight:700}
+.opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:14px 16px;font:inherit;color:inherit;cursor:pointer;margin-bottom:10px}
+.opt[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--card))}
+.opt b{display:block}.opt span{color:var(--muted);font-size:14px}
+.card{margin-top:-2px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.card code{font-size:17px;font-weight:600;letter-spacing:.04em}
+.small{border:2px solid var(--line);background:var(--bg);color:var(--text);border-radius:10px;font:inherit;font-size:14px;padding:8px 12px;cursor:pointer}
+.del{color:var(--danger)}
+input{width:100%;font:inherit;color:var(--text);background:var(--bg);border:2px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:10px}
+input:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.addr{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.addr b{display:block}.addr span{color:var(--muted);font-size:14px}
+.primary{display:block;width:100%;border:0;border-radius:16px;background:var(--accent);color:var(--accent-text);font:inherit;font-size:18px;font-weight:700;padding:16px;cursor:pointer}
+.bar{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--bg);border-top:1px solid var(--line)}
+.bar .primary{max-width:480px;margin:0 auto}
+.err{color:var(--danger);font-size:14px;margin-top:6px}
+.empty{color:var(--muted);font-size:15px}
+.done{text-align:center;padding-top:25vh}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<nav class="tabs" role="tablist">
+  <button role="tab" id="t-order" aria-selected="true">Заказ</button>
+  <button role="tab" id="t-profile" aria-selected="false">Мой профиль</button>
+</nav>
+
+<!-- ЗАКАЗ -->
+<main id="v-order">
+  <h1>Вода 19 л</h1>
+  <p class="sub">Доставка по Ташкенту. Оплата при получении.</p>
+
+  <div class="box prod">
+    <div><b>Бутыль 19 л</b><span id="price"></span></div>
+    <div class="stepper">
+      <button id="minus" aria-label="Меньше">−</button>
+      <output id="qty">1</output>
+      <button id="plus" aria-label="Больше">+</button>
+    </div>
+  </div>
+  <p class="sub" style="margin:8px 4px 0;font-size:13px">От 1 до 10 бутылей</p>
+
+  <h2>Адрес доставки</h2>
+  <div id="addrList"></div>
+
+  <h2>Оплата</h2>
+  <button class="opt" data-pay="cash" aria-pressed="true"><div><b>Наличными</b><span>Курьеру при получении</span></div></button>
+  <button class="opt" data-pay="card" aria-pressed="false"><div><b>Переводом на карту</b><span>По номеру карты</span></div></button>
+  <div class="box card" id="cardBox" hidden>
+    <code id="cardNum"></code>
+    <button class="small" id="copy">Копировать</button>
+  </div>
+  <p class="err" id="err" hidden></p>
+</main>
+
+<!-- ПРОФИЛЬ -->
+<main id="v-profile" hidden>
+  <h1>Мой профиль</h1>
+  <p class="sub">Сохраните адреса и телефон — выбирать их в заказе будет быстрее.</p>
+
+  <h2>Телефон</h2>
+  <input id="phone" type="tel" placeholder="+998 90 123 45 67" autocomplete="tel">
+
+  <h2>Мои адреса</h2>
+  <div id="profAddr"></div>
+
+  <div class="box">
+    <input id="newLabel" type="text" placeholder="Название (Дом, Офис)" maxlength="30">
+    <input id="newAddr" type="text" placeholder="Улица, дом, квартира, ориентир" maxlength="200">
+    <button class="primary" id="addBtn" style="font-size:16px;padding:13px">Добавить адрес</button>
+  </div>
+</main>
+
+<div class="bar" id="bar"><button class="primary" id="order"></button></div>
+
+<script>
+// ===== Настройки =====
+const PRICE = 18000;                 // цена за бутыль
+const CURRENCY = "сум";
+const CARD_NUMBER = "8600 0000 0000 0000"; // номер карты для перевода
+const MIN = 1, MAX = 10;
+// =====================
+
+const tg = window.Telegram && Telegram.WebApp;
+if (tg) { tg.ready(); tg.expand(); }
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString("ru-RU").replace(/\u00a0/g," ") + " " + CURRENCY;
+const esc = s => s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+// Хранилище: облако Telegram (на всех устройствах), запасной вариант — localStorage
+const store = {
+  get(k){ return new Promise(res => {
+    try{ if(tg && tg.CloudStorage){ tg.CloudStorage.getItem(k,(e,v)=>res(e?null:v)); return; } }catch(e){}
+    try{ res(localStorage.getItem(k)); }catch(e){ res(null); }
+  });},
+  set(k,v){
+    try{ if(tg && tg.CloudStorage){ tg.CloudStorage.setItem(k,v); return; } }catch(e){}
+    try{ localStorage.setItem(k,v); }catch(e){}
+  }
+};
+
+let qty = 1, pay = "cash", addresses = [], selected = null, phone = "";
+
+function save(){ store.set("profile", JSON.stringify({addresses, selected, phone})); }
+
+function renderOrder(){
+  $("price").textContent = fmt(PRICE) + " за бутыль";
+  $("qty").textContent = qty;
+  $("minus").disabled = qty <= MIN;
+  $("plus").disabled = qty >= MAX;
+  $("order").textContent = `Заказать · ${fmt(PRICE*qty)}`;
+  $("cardBox").hidden = pay !== "card";
+  $("cardNum").textContent = CARD_NUMBER;
+  document.querySelectorAll("[data-pay]").forEach(b => b.setAttribute("aria-pressed", b.dataset.pay===pay));
+
+  $("addrList").innerHTML = addresses.length
+    ? addresses.map(a => `<button class="opt" data-sel="${a.id}" aria-pressed="${a.id===selected}"><div><b>${esc(a.label)}</b><span>${esc(a.text)}</span></div></button>`).join("")
+    : `<div class="box empty">Адресов пока нет. Добавьте первый в разделе «Мой профиль».</div>`;
+}
+
+function renderProfile(){
+  $("phone").value = phone;
+  $("profAddr").innerHTML = addresses.length
+    ? addresses.map(a => `<div class="box addr"><div><b>${esc(a.label)}</b><span>${esc(a.text)}</span></div><button class="small del" data-del="${a.id}">Удалить</button></div>`).join("")
+    : `<p class="empty" style="margin-bottom:10px">Пока пусто.</p>`;
+}
+
+function show(tab){
+  const order = tab === "order";
+  $("v-order").hidden = !order; $("v-profile").hidden = order; $("bar").hidden = !order;
+  $("t-order").setAttribute("aria-selected", order); $("t-profile").setAttribute("aria-selected", !order);
+  order ? renderOrder() : renderProfile();
+}
+$("t-order").onclick = () => show("order");
+$("t-profile").onclick = () => show("profile");
+
+$("minus").onclick = () => { if(qty>MIN){ qty--; renderOrder(); } };
+$("plus").onclick  = () => { if(qty<MAX){ qty++; renderOrder(); } };
+document.querySelector("#v-order").addEventListener("click", e => {
+  const p = e.target.closest("[data-pay]"); if(p){ pay = p.dataset.pay; renderOrder(); return; }
+  const s = e.target.closest("[data-sel]"); if(s){ selected = s.dataset.sel; save(); renderOrder(); }
+});
+$("copy").onclick = async () => {
+  try{ await navigator.clipboard.writeText(CARD_NUMBER.replace(/\s/g,"")); $("copy").textContent = "Скопировано"; }
+  catch(e){ $("copy").textContent = "Выделите номер"; }
+  setTimeout(() => $("copy").textContent = "Копировать", 1800);
+};
+
+$("addBtn").onclick = () => {
+  const label = $("newLabel").value.trim() || "Адрес", text = $("newAddr").value.trim();
+  if(!text){ $("newAddr").focus(); return; }
+  const a = {id: String(Date.now()), label, text};
+  addresses.push(a); if(!selected) selected = a.id;
+  $("newLabel").value = ""; $("newAddr").value = "";
+  save(); renderProfile();
+};
+$("profAddr").addEventListener("click", e => {
+  const d = e.target.closest("[data-del]"); if(!d) return;
+  addresses = addresses.filter(a => a.id !== d.dataset.del);
+  if(selected === d.dataset.del) selected = addresses[0] ? addresses[0].id : null;
+  save(); renderProfile();
+});
+$("phone").addEventListener("change", () => { phone = $("phone").value.trim(); save(); });
+
+$("order").onclick = () => {
+  const a = addresses.find(x => x.id === selected);
+  const err = $("err");
+  if(!a){ err.textContent = "Выберите адрес или добавьте его в профиле."; err.hidden = false; return; }
+  err.hidden = true;
+  const order = {product:"Вода 19 л", qty, total:PRICE*qty,
+    payment: pay==="cash" ? "Наличными" : "Переводом на карту",
+    address: a.label + ": " + a.text, phone};
+  if(tg && tg.sendData){ tg.sendData(JSON.stringify(order)); }
+  else {
+    document.querySelector("main:not([hidden])").innerHTML =
+      `<div class="done"><h1>Заказ принят ✓</h1><p class="sub">${qty} × 19 л · ${fmt(order.total)}<br>${esc(order.address)}<br>${order.payment}</p></div>`;
+    $("bar").hidden = true;
+  }
+};
+
+store.get("profile").then(v => {
+  try{ const p = JSON.parse(v || "{}"); addresses = p.addresses || []; selected = p.selected || (addresses[0] && addresses[0].id) || null; phone = p.phone || ""; }catch(e){}
+  show("order");
+});
+</script>
+</body>
+</html>
