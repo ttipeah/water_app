@@ -31,8 +31,9 @@ h2{font-size:15px;font-weight:600;color:var(--muted);margin:22px 0 10px}
 .card code{font-size:17px;font-weight:600;letter-spacing:.04em}
 .small{border:2px solid var(--line);background:var(--bg);color:var(--text);border-radius:10px;font:inherit;font-size:14px;padding:8px 12px;cursor:pointer}
 .del{color:var(--danger)}
-input{width:100%;font:inherit;color:var(--text);background:var(--bg);border:2px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:10px}
-input:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+input,select{width:100%;font:inherit;color:var(--text);background:var(--bg);border:2px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:10px}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .addr{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
 .addr b{display:block}.addr span{color:var(--muted);font-size:14px}
 .primary{display:block;width:100%;border:0;border-radius:16px;background:var(--accent);color:var(--accent-text);font:inherit;font-size:18px;font-weight:700;padding:16px;cursor:pointer}
@@ -83,6 +84,9 @@ input:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:
   <h1>Мой профиль</h1>
   <p class="sub">Сохраните адреса и телефон — выбирать их в заказе будет быстрее.</p>
 
+  <h2>Имя</h2>
+  <input id="name" type="text" placeholder="Как к вам обращаться" autocomplete="name" maxlength="60">
+
   <h2>Телефон</h2>
   <input id="phone" type="tel" placeholder="+998 90 123 45 67" autocomplete="tel">
 
@@ -91,7 +95,12 @@ input:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:
 
   <div class="box">
     <input id="newLabel" type="text" placeholder="Название (Дом, Офис)" maxlength="30">
-    <input id="newAddr" type="text" placeholder="Улица, дом, квартира, ориентир" maxlength="200">
+    <select id="newDistrict"><option value="">Район</option><option>Алмазарский</option><option>Бектемирский</option><option>Мирабадский</option><option>Мирзо-Улугбекский</option><option>Сергелийский</option><option>Учтепинский</option><option>Чиланзарский</option><option>Шайхантахурский</option><option>Юнусабадский</option><option>Яккасарайский</option><option>Яшнабадский</option><option>Янгихаётский</option></select>
+    <input id="newStreet" type="text" placeholder="Улица / массив / махалля" maxlength="100">
+    <div class="row"><input id="newHouse" type="text" placeholder="Дом" maxlength="15"><input id="newApt" type="text" placeholder="Квартира / офис" maxlength="15"></div>
+    <div class="row3"><input id="newEntr" type="text" placeholder="Подъезд" maxlength="10"><input id="newFloor" type="text" placeholder="Этаж" maxlength="10"><input id="newCode" type="text" placeholder="Домофон" maxlength="15"></div>
+    <input id="newLandmark" type="text" placeholder="Ориентир (необязательно)" maxlength="100">
+    <p class="err" id="addrErr" hidden style="margin:-4px 0 10px"></p>
     <button class="primary" id="addBtn" style="font-size:16px;padding:13px">Добавить адрес</button>
   </div>
 </main>
@@ -100,9 +109,9 @@ input:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:
 
 <script>
 // ===== Настройки =====
-const PRICE = 18000;                 // цена за бутыль
+const PRICE = 20000;                 // цена за бутыль
 const CURRENCY = "сум";
-const CARD_NUMBER = "8600 0000 0000 0000"; // номер карты для перевода
+const CARD_NUMBER = "9860 3501 4466 7838"; // номер карты для перевода
 const MIN = 1, MAX = 10;
 // =====================
 
@@ -110,6 +119,10 @@ const tg = window.Telegram && Telegram.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
 const $ = id => document.getElementById(id);
 const fmt = n => n.toLocaleString("ru-RU").replace(/\u00a0/g," ") + " " + CURRENCY;
+const fmtAddr = a => a.text || [
+  a.district && a.district + " р-н", a.street, a.house && "д. " + a.house, a.apt && "кв/оф. " + a.apt,
+  a.entrance && "подъезд " + a.entrance, a.floor && "этаж " + a.floor, a.code && "домофон " + a.code,
+  a.landmark && "ориентир: " + a.landmark].filter(Boolean).join(", ");
 const esc = s => s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
 // Хранилище: облако Telegram (на всех устройствах), запасной вариант — localStorage
@@ -124,9 +137,9 @@ const store = {
   }
 };
 
-let qty = 1, pay = "cash", addresses = [], selected = null, phone = "";
+let qty = 1, pay = "cash", addresses = [], selected = null, phone = "", name = "";
 
-function save(){ store.set("profile", JSON.stringify({addresses, selected, phone})); }
+function save(){ store.set("profile", JSON.stringify({addresses, selected, phone, name})); }
 
 function renderOrder(){
   $("price").textContent = fmt(PRICE) + " за бутыль";
@@ -139,14 +152,14 @@ function renderOrder(){
   document.querySelectorAll("[data-pay]").forEach(b => b.setAttribute("aria-pressed", b.dataset.pay===pay));
 
   $("addrList").innerHTML = addresses.length
-    ? addresses.map(a => `<button class="opt" data-sel="${a.id}" aria-pressed="${a.id===selected}"><div><b>${esc(a.label)}</b><span>${esc(a.text)}</span></div></button>`).join("")
+    ? addresses.map(a => `<button class="opt" data-sel="${a.id}" aria-pressed="${a.id===selected}"><div><b>${esc(a.label)}</b><span>${esc(fmtAddr(a))}</span></div></button>`).join("")
     : `<div class="box empty">Адресов пока нет. Добавьте первый в разделе «Мой профиль».</div>`;
 }
 
 function renderProfile(){
-  $("phone").value = phone;
+  $("phone").value = phone; $("name").value = name;
   $("profAddr").innerHTML = addresses.length
-    ? addresses.map(a => `<div class="box addr"><div><b>${esc(a.label)}</b><span>${esc(a.text)}</span></div><button class="small del" data-del="${a.id}">Удалить</button></div>`).join("")
+    ? addresses.map(a => `<div class="box addr"><div><b>${esc(a.label)}</b><span>${esc(fmtAddr(a))}</span></div><button class="small del" data-del="${a.id}">Удалить</button></div>`).join("")
     : `<p class="empty" style="margin-bottom:10px">Пока пусто.</p>`;
 }
 
@@ -172,11 +185,15 @@ $("copy").onclick = async () => {
 };
 
 $("addBtn").onclick = () => {
-  const label = $("newLabel").value.trim() || "Адрес", text = $("newAddr").value.trim();
-  if(!text){ $("newAddr").focus(); return; }
-  const a = {id: String(Date.now()), label, text};
+  const v = id => $(id).value.trim();
+  const err = $("addrErr");
+  const missing = !v("newDistrict") ? "newDistrict" : !v("newStreet") ? "newStreet" : !v("newHouse") ? "newHouse" : null;
+  if(missing){ err.textContent = "Укажите район, улицу и дом."; err.hidden = false; $(missing).focus(); return; }
+  err.hidden = true;
+  const a = {id: String(Date.now()), label: v("newLabel") || "Адрес", district: v("newDistrict"), street: v("newStreet"),
+    house: v("newHouse"), apt: v("newApt"), entrance: v("newEntr"), floor: v("newFloor"), code: v("newCode"), landmark: v("newLandmark")};
   addresses.push(a); if(!selected) selected = a.id;
-  $("newLabel").value = ""; $("newAddr").value = "";
+  ["newLabel","newDistrict","newStreet","newHouse","newApt","newEntr","newFloor","newCode","newLandmark"].forEach(id => $(id).value = "");
   save(); renderProfile();
 };
 $("profAddr").addEventListener("click", e => {
@@ -185,16 +202,18 @@ $("profAddr").addEventListener("click", e => {
   if(selected === d.dataset.del) selected = addresses[0] ? addresses[0].id : null;
   save(); renderProfile();
 });
+$("name").addEventListener("change", () => { name = $("name").value.trim(); save(); });
 $("phone").addEventListener("change", () => { phone = $("phone").value.trim(); save(); });
 
 $("order").onclick = () => {
   const a = addresses.find(x => x.id === selected);
   const err = $("err");
+  if(!name || !phone){ err.textContent = "Укажите имя и телефон в разделе «Мой профиль»."; err.hidden = false; return; }
   if(!a){ err.textContent = "Выберите адрес или добавьте его в профиле."; err.hidden = false; return; }
   err.hidden = true;
   const order = {product:"Вода 19 л", qty, total:PRICE*qty,
     payment: pay==="cash" ? "Наличными" : "Переводом на карту",
-    address: a.label + ": " + a.text, phone};
+    address: a.label + ": " + fmtAddr(a), name, phone};
   if(tg && tg.sendData){ tg.sendData(JSON.stringify(order)); }
   else {
     document.querySelector("main:not([hidden])").innerHTML =
@@ -204,7 +223,7 @@ $("order").onclick = () => {
 };
 
 store.get("profile").then(v => {
-  try{ const p = JSON.parse(v || "{}"); addresses = p.addresses || []; selected = p.selected || (addresses[0] && addresses[0].id) || null; phone = p.phone || ""; }catch(e){}
+  try{ const p = JSON.parse(v || "{}"); addresses = p.addresses || []; selected = p.selected || (addresses[0] && addresses[0].id) || null; phone = p.phone || ""; name = p.name || ""; }catch(e){}
   show("order");
 });
 </script>
