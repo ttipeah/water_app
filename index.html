@@ -76,6 +76,7 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
     <code id="cardNum"></code>
     <button class="small" id="copy">Копировать</button>
   </div>
+  <p class="sub" id="cardHint" hidden style="font-size:13px;margin:0 4px 10px">После нажатия «Заказать» бот пришлёт реквизиты. Отправьте ему скриншот перевода прямо в чат.</p>
   <p class="err" id="err" hidden></p>
 </main>
 
@@ -109,9 +110,9 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 
 <script>
 // ===== Настройки =====
-const PRICE = 20000;                 // цена за бутыль
+const PRICE = 18000;                 // цена за бутыль
 const CURRENCY = "сум";
-const CARD_NUMBER = "9860 3501 4466 7838"; // номер карты для перевода
+const CARD_NUMBER = "8600 0000 0000 0000"; // номер карты для перевода
 const MIN = 1, MAX = 10;
 // =====================
 
@@ -147,7 +148,7 @@ function renderOrder(){
   $("minus").disabled = qty <= MIN;
   $("plus").disabled = qty >= MAX;
   $("order").textContent = `Заказать · ${fmt(PRICE*qty)}`;
-  $("cardBox").hidden = pay !== "card";
+  $("cardBox").hidden = pay !== "card"; $("cardHint").hidden = pay !== "card";
   $("cardNum").textContent = CARD_NUMBER;
   document.querySelectorAll("[data-pay]").forEach(b => b.setAttribute("aria-pressed", b.dataset.pay===pay));
 
@@ -212,7 +213,7 @@ $("order").onclick = () => {
   if(!a){ err.textContent = "Выберите адрес или добавьте его в профиле."; err.hidden = false; return; }
   err.hidden = true;
   const order = {product:"Вода 19 л", qty, total:PRICE*qty,
-    payment: pay==="cash" ? "Наличными" : "Переводом на карту",
+    pay, payment: pay==="cash" ? "Наличными" : "Переводом на карту",
     address: a.label + ": " + fmtAddr(a), name, phone};
   if(tg && tg.sendData){ tg.sendData(JSON.stringify(order)); }
   else {
