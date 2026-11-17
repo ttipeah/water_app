@@ -126,9 +126,9 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 
 <script>
 // ===== Настройки =====
-const PRICE = 20000;                 // цена за бутыль
+const PRICE = 18000;                 // цена за бутыль
 const CURRENCY = "сум";
-const CARD_NUMBER = "9860 3501 4466 7838"; // номер карты для перевода
+const CARD_NUMBER = "8600 0000 0000 0000"; // номер карты для перевода
 const MIN = 1, MAX = 10;
 // =====================
 
@@ -145,15 +145,18 @@ const digits9 = v => { let d = String(v || "").replace(/\D/g, ""); if(d.startsWi
 const fmtPhone = d => d.replace(/^(\d{0,2})(\d{0,3})(\d{0,2})(\d{0,2}).*/, (m,a,b,c,e) => [a,b,c,e].filter(Boolean).join(" "));
 const esc = s => s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
-// Хранилище: облако Telegram (на всех устройствах), запасной вариант — localStorage
+// Хранилище: сразу читаем localStorage, облако Telegram подтягиваем с таймаутом
 const store = {
-  get(k){ return new Promise(res => {
-    try{ if(tg && tg.CloudStorage){ tg.CloudStorage.getItem(k,(e,v)=>res(e?null:v)); return; } }catch(e){}
-    try{ res(localStorage.getItem(k)); }catch(e){ res(null); }
+  getLocal(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  getCloud(k){ return new Promise(res => {
+    let done = false; const fin = v => { if(!done){ done = true; res(v); } };
+    setTimeout(() => fin(null), 1500);
+    try{ if(tg && tg.CloudStorage){ tg.CloudStorage.getItem(k, (e,v) => fin(e ? null : v)); return; } }catch(e){}
+    fin(null);
   });},
   set(k,v){
-    try{ if(tg && tg.CloudStorage){ tg.CloudStorage.setItem(k,v); return; } }catch(e){}
     try{ localStorage.setItem(k,v); }catch(e){}
+    try{ if(tg && tg.CloudStorage) tg.CloudStorage.setItem(k,v); }catch(e){}
   }
 };
 
@@ -162,15 +165,34 @@ const busy = busyId !== "";
 let qty = 1, pay = "cash", addresses = [], selected = null, phone = "", name = "";
 
 let sent = false; // заказ уже отправлен в этой сессии
-function save(){ store.set("profile", JSON.stringify({addresses, selected, phone, name})); }
+let profTs = 0;
+function save(){ profTs = Date.now(); store.set("profile", JSON.stringify({addresses, selected, phone, name, ts: profTs})); }
+
+let curTab = "order";
+// На Android используем родную кнопку Telegram (MainButton): она всегда видна и не зависит от вёрстки
+const native = !!(tg && tg.MainButton && tg.platform === "android");
+function setBar(visible, text){
+  if(native){
+    $("bar").hidden = true;
+    if(visible){ tg.MainButton.setText(text); tg.MainButton.show(); } else { tg.MainButton.hide(); }
+  } else {
+    $("bar").hidden = !visible;
+    if(visible) $("order").textContent = text;
+  }
+}
+// Заметное сообщение (всплывающее окно Telegram), чтобы ошибку не пропустили под экраном
+function warn(msg, toProfile){
+  const err = $("err"); err.textContent = msg; err.hidden = false;
+  try{ if(tg && tg.showAlert){ tg.showAlert(msg, () => { if(toProfile) show("profile"); }); return; } }catch(e){}
+  if(toProfile) show("profile");
+}
 
 function renderOrder(){
   $("price").textContent = fmt(PRICE) + " за бутыль";
   $("qty").textContent = qty;
   $("minus").disabled = qty <= MIN;
   $("plus").disabled = qty >= MAX;
-  $("order").textContent = `Заказать · ${fmt(PRICE*qty)}`;
-  $("busy").hidden = !busy; $("orderForm").hidden = busy; $("bar").hidden = busy;
+  $("busy").hidden = !busy; $("orderForm").hidden = busy; setBar(!busy, `Заказать · ${fmt(PRICE*qty)}`);
   $("busyText").textContent = (busyId && busyId !== "1" ? `Заказ №${busyId} передан оператору. ` : "") + "Как только его подтвердят или отклонят, вы сможете оформить новый заказ.";
   $("cardBox").hidden = pay !== "card"; $("cardHint").hidden = pay !== "card";
   $("cardNum").textContent = CARD_NUMBER;
@@ -190,9 +212,9 @@ function renderProfile(){
 
 function show(tab){
   const order = tab === "order";
-  $("v-order").hidden = !order; $("v-profile").hidden = order; $("bar").hidden = !order;
+  curTab = tab; $("v-order").hidden = !order; $("v-profile").hidden = order;
   $("t-order").setAttribute("aria-selected", order); $("t-profile").setAttribute("aria-selected", !order);
-  order ? renderOrder() : renderProfile();
+  if(order) renderOrder(); else { setBar(false); renderProfile(); }
 }
 $("t-order").onclick = () => show("order");
 $("t-profile").onclick = () => show("profile");
@@ -232,23 +254,39 @@ $("name").addEventListener("change", () => { name = $("name").value.trim(); save
 $("phone").addEventListener("input", () => { $("phone").value = fmtPhone(digits9($("phone").value)); });
 $("phone").addEventListener("change", () => { phone = digits9($("phone").value); save(); });
 
-$("order").onclick = () => {
+function placeOrder(){
   if(busy) return;
   const a = addresses.find(x => x.id === selected);
   const err = $("err");
-  if(!name || phone.length !== 9){ err.textContent = "Укажите имя и телефон в разделе «Мой профиль»."; err.hidden = false; return; }
-  if(!a){ err.textContent = "Выберите адрес или добавьте его в профиле."; err.hidden = false; return; }
+  if(!name || phone.length !== 9){ warn("Укажите имя и телефон в разделе «Мой профиль».", true); return; }
+  if(!a){ warn("Выберите адрес или добавьте его в разделе «Мой профиль».", true); return; }
   err.hidden = true;
   const order = {product:"Вода 19 л", qty, total:PRICE*qty,
     pay, payment: pay==="cash" ? "Наличными" : "Переводом на карту",
     address: a.label + ": " + fmtAddr(a), name, phone: "+998 " + fmtPhone(phone)};
-  if(tg && tg.sendData){ tg.sendData(JSON.stringify(order)); sent = true; }
+  if(tg && tg.sendData){
+    try{ tg.sendData(JSON.stringify(order)); sent = true; }
+    catch(e){ warn("Не удалось отправить заказ. Откройте апку кнопкой «💧 Заказать воду» в чате с ботом."); return; }
+    // Если апка не закрылась, значит заказ не ушёл (она открыта не кнопкой клавиатуры бота)
+    const t0 = Date.now();
+    setTimeout(() => {
+      if(!document.hidden && Date.now() - t0 < 3500){
+        sent = false;
+        warn("Заказ не отправился. Закройте апку и откройте её кнопкой «💧 Заказать воду» внизу чата с ботом.");
+      }
+    }, 2000);
+  }
   else {
     document.querySelector("main:not([hidden])").innerHTML =
       `<div class="done"><h1>Заказ принят ✓</h1><p class="sub">${qty} × 19 л · ${fmt(order.total)}<br>${esc(order.address)}<br>${order.payment}</p></div>`;
-    $("bar").hidden = true;
+    setBar(false);
   }
-};
+}
+$("order").onclick = placeOrder;
+if(native){
+  tg.MainButton.onClick(placeOrder);
+  try{ tg.MainButton.setParams({color: "#2389cf", text_color: "#ffffff"}); }catch(e){}
+}
 
 // На Android Telegram может оставлять страницу «живой» после закрытия.
 // Если заказ уже ушёл, при повторном открытии перезагружаем страницу начисто.
@@ -257,10 +295,19 @@ document.addEventListener("visibilitychange", () => { if(!document.hidden) refre
 window.addEventListener("pageshow", e => { if(e.persisted) refresh(); });
 try{ if(tg && tg.onEvent) tg.onEvent("activated", refresh); }catch(e){}
 
-store.get("profile").then(v => {
-  try{ const p = JSON.parse(v || "{}"); addresses = p.addresses || []; selected = p.selected || (addresses[0] && addresses[0].id) || null; phone = digits9(p.phone); name = p.name || ""; }catch(e){}
-  show("order");
-});
+function applyProfile(v){
+  try{
+    if(!v) return false;
+    const p = JSON.parse(v);
+    if(profTs && (p.ts || 0) <= profTs) return false;
+    addresses = p.addresses || []; selected = p.selected || (addresses[0] && addresses[0].id) || null;
+    phone = digits9(p.phone); name = p.name || ""; profTs = p.ts || 0;
+    return true;
+  }catch(e){ return false; }
+}
+applyProfile(store.getLocal("profile"));
+show("order"); // показываем сразу, не дожидаясь облака
+store.getCloud("profile").then(v => { if(applyProfile(v)) show(curTab); });
 </script>
 </body>
 </html>
