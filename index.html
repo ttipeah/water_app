@@ -3,43 +3,44 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Заказ воды</title>
+<title>SHOH SUV</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
-:root{--bg:#f3f8fb;--card:#fff;--text:#0f2a3a;--muted:#5d7686;--accent:#0a7fb8;--accent-text:#fff;--line:#d3e3ec;--danger:#d64545}
-@media (prefers-color-scheme:dark){:root{--bg:#0c1a23;--card:#142630;--text:#e8f3f9;--muted:#8aa5b4;--accent:#3fb0e4;--accent-text:#05202e;--line:#25404e;--danger:#ff7a7a}}
+:root{color-scheme:light;--bg:#f6fbfe;--card:#fff;--text:#17384d;--muted:#6f8a9b;--accent:#2389cf;--accent-text:#fff;--line:#e0eef7;--tint:#eaf5fc;--danger:#d64545}
 *{box-sizing:border-box;margin:0}
 html,body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 body{padding:16px 16px 120px;max-width:480px;margin:0 auto}
-.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--card);border:2px solid var(--line);border-radius:14px;padding:4px;margin-bottom:20px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:4px;margin-bottom:20px}
 .tabs button{border:0;background:none;font:inherit;font-weight:600;color:var(--muted);padding:10px;border-radius:10px;cursor:pointer}
 .tabs button[aria-selected="true"]{background:var(--accent);color:var(--accent-text)}
 h1{font-size:26px;letter-spacing:-.02em;margin-bottom:4px}
 .sub{color:var(--muted);font-size:15px;margin-bottom:18px}
 h2{font-size:15px;font-weight:600;color:var(--muted);margin:22px 0 10px}
-.box{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:16px}
+.box{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:16px}
 .prod{display:flex;justify-content:space-between;align-items:center;gap:12px}
 .prod b{font-size:18px;display:block}.prod span{color:var(--muted);font-size:14px}
 .stepper{display:flex;align-items:center;gap:6px}
-.stepper button{width:44px;height:44px;border-radius:12px;border:2px solid var(--line);background:var(--bg);color:var(--text);font-size:22px;font-weight:700;cursor:pointer}
+.stepper button{width:44px;height:44px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--text);font-size:22px;font-weight:700;cursor:pointer}
 .stepper button:disabled{opacity:.35}
 .stepper output{min-width:34px;text-align:center;font-size:22px;font-weight:700}
-.opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:2px solid var(--line);border-radius:16px;padding:14px 16px;font:inherit;color:inherit;cursor:pointer;margin-bottom:10px}
-.opt[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--card))}
+.opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;font:inherit;color:inherit;cursor:pointer;margin-bottom:10px}
+.opt[aria-pressed="true"]{border-color:var(--accent);background:var(--tint)}
 .opt b{display:block}.opt span{color:var(--muted);font-size:14px}
 .card{margin-top:-2px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .card code{font-size:17px;font-weight:600;letter-spacing:.04em}
-.small{border:2px solid var(--line);background:var(--bg);color:var(--text);border-radius:10px;font:inherit;font-size:14px;padding:8px 12px;cursor:pointer}
+.small{border:1.5px solid var(--line);background:var(--bg);color:var(--text);border-radius:10px;font:inherit;font-size:14px;padding:8px 12px;cursor:pointer}
 .del{color:var(--danger)}
-input,select{width:100%;font:inherit;color:var(--text);background:var(--bg);border:2px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:10px}
+input,select{width:100%;font:inherit;color:var(--text);background:var(--bg);border:1.5px solid var(--line);border-radius:14px;padding:13px 14px;margin-bottom:10px}
 input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.phone{display:flex;align-items:center;background:var(--bg);border:2px solid var(--line);border-radius:14px;margin-bottom:10px}
+.phone{display:flex;align-items:center;background:var(--bg);border:1.5px solid var(--line);border-radius:14px;margin-bottom:10px}
 .phone span{padding-left:14px;font-weight:600;color:var(--muted)}
 .phone input{border:0;margin:0;background:transparent;padding-left:6px}
 .phone input:focus{outline:none}.phone:focus-within{outline:3px solid var(--accent);outline-offset:2px}
 .warn{border-color:var(--danger);margin-bottom:16px;font-size:15px}
 .primary:disabled{opacity:.45;cursor:not-allowed}
+.brand{display:flex;align-items:center;justify-content:center;gap:9px;margin:4px 0 16px;font-weight:700;font-size:15px;letter-spacing:.32em;color:var(--accent)}
+.busycard{text-align:center;padding:40px 8px}.busycard .ico{font-size:44px;margin-bottom:10px}.busycard .sub{margin:8px 0 26px}
 .addr{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
 .addr b{display:block}.addr span{color:var(--muted);font-size:14px}
 .primary{display:block;width:100%;border:0;border-radius:16px;background:var(--accent);color:var(--accent-text);font:inherit;font-size:18px;font-weight:700;padding:16px;cursor:pointer}
@@ -52,6 +53,7 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 </style>
 </head>
 <body>
+<header class="brand"><svg width="16" height="20" viewBox="0 0 18 22" aria-hidden="true"><path d="M9 1C9 1 1.5 9.2 1.5 14a7.5 7.5 0 0 0 15 0C16.5 9.2 9 1 9 1z" fill="currentColor"/></svg>SHOH SUV</header>
 <nav class="tabs" role="tablist">
   <button role="tab" id="t-order" aria-selected="true">Заказ</button>
   <button role="tab" id="t-profile" aria-selected="false">Мой профиль</button>
@@ -59,7 +61,13 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 
 <!-- ЗАКАЗ -->
 <main id="v-order">
-  <div class="box warn" id="busy" hidden>⏳ У вас уже есть активный заказ. Пожалуйста, подождите его завершения или подтверждения оператором.</div>
+  <div class="busycard" id="busy" hidden>
+    <div class="ico">⏳</div>
+    <h1>Заказ ожидает подтверждения</h1>
+    <p class="sub" id="busyText"></p>
+    <button class="primary" id="busyClose">Понятно</button>
+  </div>
+  <div id="orderForm">
   <h1>Вода 19 л</h1>
   <p class="sub">Доставка по Ташкенту. Оплата при получении.</p>
 
@@ -85,6 +93,7 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
   </div>
   <p class="sub" id="cardHint" hidden style="font-size:13px;margin:0 4px 10px">После нажатия «Заказать» бот пришлёт реквизиты. Отправьте ему скриншот перевода прямо в чат.</p>
   <p class="err" id="err" hidden></p>
+  </div>
 </main>
 
 <!-- ПРОФИЛЬ -->
@@ -117,14 +126,15 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 
 <script>
 // ===== Настройки =====
-const PRICE = 20000;                 // цена за бутыль
+const PRICE = 18000;                 // цена за бутыль
 const CURRENCY = "сум";
-const CARD_NUMBER = "9860 3501 4466 7838"; // номер карты для перевода
+const CARD_NUMBER = "8600 0000 0000 0000"; // номер карты для перевода
 const MIN = 1, MAX = 10;
 // =====================
 
 const tg = window.Telegram && Telegram.WebApp;
 if (tg) { tg.ready(); tg.expand(); }
+try{ tg.setHeaderColor("#f6fbfe"); tg.setBackgroundColor("#f6fbfe"); }catch(e){}
 const $ = id => document.getElementById(id);
 const fmt = n => n.toLocaleString("ru-RU").replace(/\u00a0/g," ") + " " + CURRENCY;
 const fmtAddr = a => a.text || [
@@ -147,7 +157,8 @@ const store = {
   }
 };
 
-const busy = new URLSearchParams(location.search).get("busy") === "1"; // бот открывает апку с ?busy=1, если есть активный заказ
+const busyId = new URLSearchParams(location.search).get("busy") || ""; // бот открывает апку с ?busy=НОМЕР, если есть активный заказ
+const busy = busyId !== "";
 let qty = 1, pay = "cash", addresses = [], selected = null, phone = "", name = "";
 
 let sent = false; // заказ уже отправлен в этой сессии
@@ -158,8 +169,9 @@ function renderOrder(){
   $("qty").textContent = qty;
   $("minus").disabled = qty <= MIN;
   $("plus").disabled = qty >= MAX;
-  $("order").textContent = busy ? "Активный заказ уже оформлен" : `Заказать · ${fmt(PRICE*qty)}`;
-  $("order").disabled = busy; $("busy").hidden = !busy;
+  $("order").textContent = `Заказать · ${fmt(PRICE*qty)}`;
+  $("busy").hidden = !busy; $("orderForm").hidden = busy; $("bar").hidden = busy;
+  $("busyText").textContent = (busyId && busyId !== "1" ? `Заказ №${busyId} передан оператору. ` : "") + "Как только его подтвердят или отклонят, вы сможете оформить новый заказ.";
   $("cardBox").hidden = pay !== "card"; $("cardHint").hidden = pay !== "card";
   $("cardNum").textContent = CARD_NUMBER;
   document.querySelectorAll("[data-pay]").forEach(b => b.setAttribute("aria-pressed", b.dataset.pay===pay));
@@ -185,6 +197,7 @@ function show(tab){
 $("t-order").onclick = () => show("order");
 $("t-profile").onclick = () => show("profile");
 
+$("busyClose").onclick = () => { try{ tg.close(); }catch(e){} };
 $("minus").onclick = () => { if(qty>MIN){ qty--; renderOrder(); } };
 $("plus").onclick  = () => { if(qty<MAX){ qty++; renderOrder(); } };
 document.querySelector("#v-order").addEventListener("click", e => {
